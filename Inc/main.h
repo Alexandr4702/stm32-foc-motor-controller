@@ -63,6 +63,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define EN_ZATVOR_Pin GPIO_PIN_9
 #define EN_ZATVOR_GPIO_Port GPIOB
+#define DRIVER_FAULT_Pin GPIO_PIN_1
+#define DRIVER_FAULT_GPIO_Port GPIOE
 #define SPI3_CS_Pin GPIO_PIN_15
 #define SPI3_CS_GPIO_Port GPIOA
 #define SPI2_CS_Pin GPIO_PIN_15

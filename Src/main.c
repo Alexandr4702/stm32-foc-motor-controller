@@ -106,7 +106,7 @@ enum
 	current_control
 };
 
-uint8_t mode=moment;
+uint8_t mode=	calibrate;
 
 typedef struct
 {
@@ -255,8 +255,15 @@ int main(void)
   MX_I2C2_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+
+
+
+
+
+
+
   ic_mu150* encoder_gearbox= ic_mu150_init(&hspi2,SPI2_CS_GPIO_Port,SPI2_CS_Pin,0);
-  ic_mu150*  encoder_motor= ic_mu150_init(&hspi3,SPI3_CS_GPIO_Port,SPI3_CS_Pin,106.37);
+  ic_mu150*  encoder_motor= ic_mu150_init(&hspi3,SPI3_CS_GPIO_Port,SPI3_CS_Pin,0);
 
 
 
@@ -283,6 +290,7 @@ int main(void)
   m1.P=0.1;
   m1.phi=0;
   m1.S=htim20.Instance->ARR/2;
+  volatile GPIO_PinState DRIVER_FAULT_STATE;
   //---P-I-D----------------------------------------------------------
   float I_error=0;
   float p_error=0;
@@ -321,8 +329,14 @@ int main(void)
 	  DWT->CYCCNT=0;
 	  t=((float)HAL_GetTick())*0.001f;
 
-	  encoder_motor->read_angle(encoder_motor);
-	  phi=encoder_motor->angle;
+
+	  DRIVER_FAULT_STATE = HAL_GPIO_ReadPin(DRIVER_FAULT_GPIO_Port,DRIVER_FAULT_Pin);
+
+
+//	  encoder_motor->read_angle(encoder_motor);
+//	  encoder_gearbox->read_angle(encoder_gearbox);
+//	  phi=encoder_motor->angle;
+			  //encoder_motor->angle;
 
 
 	  delta_phi=((phi_pr>270.0f)&&(phi<90.0f))?(360.0f+phi-phi_pr):
@@ -341,16 +355,16 @@ int main(void)
 
 	  case moment:
 	  {
-		  m1.P=fabsf(_phi_0);
+		  m1.P=0.2;//fabsf(_phi_0);
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
-//		  m1.phi=t*10;
+		  m1.phi=t*20;
 
 		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR)*0;
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR)*0;
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR)*0;
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
 		  break;
 	  }
 	  case velo:
@@ -410,7 +424,7 @@ int main(void)
 	  }
 	  case calibrate:
 	  {
-		  m1.P=fabsf(_phi_0);
+		  m1.P=0.2;//fabsf(_phi_0);
 		  m1.phi=0;
 
 		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
@@ -1287,6 +1301,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(EN_ZATVOR_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DRIVER_FAULT_Pin */
+  GPIO_InitStruct.Pin = DRIVER_FAULT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(DRIVER_FAULT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SPI3_CS_Pin */
   GPIO_InitStruct.Pin = SPI3_CS_Pin;
