@@ -10,6 +10,17 @@
 
 extern I2C_HandleTypeDef hi2c;
 
+
+/*
+ * for debug
+ *
+ */
+extern UART_HandleTypeDef huart4;
+extern uint8_t str[200];
+extern int strl;
+
+
+
 uint8_t eepromi2c[]=
 {
 		  0x00,0x7a,0x41,0x02,0x03,0x88,0x00,0x75,0x00,0x00,0x02,0x00,0x00,0x00,0x06,0x05,0x00,0xa5,0x00,0xff,0x0f,0x13,0x10,0x02,0x00,0x02,0xee,0x0e,0xe0,0x11,0x22,0x21,0x1f,0x9d,0xe1,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xfe,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x4d,0x55,0x11,0x00,0x00,0x00,0x69,0x43
@@ -96,16 +107,18 @@ void write_page_eeprom(uint8_t number_page,uint8_t* data)
 	HAL_Delay(4);
 }
 
-void write_byte_eeprom(uint8_t number_byte,uint8_t byte)
+HAL_StatusTypeDef write_byte_eeprom(uint8_t number_byte,uint8_t byte,I2C_HandleTypeDef* hi2c)
 {
 	uint8_t tx[2];
 	tx[0]=number_byte;
 	tx[1]=byte;
-	HAL_I2C_Master_Transmit(&hi2c,0xa0,tx,2,0xff);
+	if(HAL_I2C_Master_Transmit(hi2c,0xa0,tx,2,0xff)!=HAL_OK){
+		return HAL_ERROR;
+	}
 	HAL_Delay(4);
 }
 
-void read_eeprom(uint8_t number_byte,uint8_t* data,uint8_t number_of_bytes)
+void read_eeprom(uint8_t number_byte,uint8_t* data,uint8_t number_of_bytes,I2C_HandleTypeDef* hi2c)
 {
 	uint8_t tx=number_byte;
 	HAL_I2C_Master_Transmit(&hi2c,0xa0,&tx,1,0xff);
@@ -139,4 +152,19 @@ ic_mu150* ic_mu150_init(SPI_HandleTypeDef* _hspi,GPIO_TypeDef * _CS_PORT,uint16_
 	_ic_mu150->bias=_bias;
 	_ic_mu150->read_angle=get_angle;
 	return _ic_mu150;
+}
+
+
+int ic_mu150_write_encoder_eeprom(I2C_HandleTypeDef * hi2c)
+{
+	  for(int i=0;i<sizeof(eepromi2c);i++)
+	  {
+		  if(write_byte_eeprom(i,eepromi2c[i],hi2c)==HAL_ERROR)
+		  {
+			  return -1;
+		  }
+	  }
+	  uint8_t rx[200];
+	  read_eeprom(0,rx,127,hi2c);
+	  return memcmp(rx,eepromi2c,127);
 }

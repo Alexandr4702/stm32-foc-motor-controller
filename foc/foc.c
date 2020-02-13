@@ -34,18 +34,19 @@ float geom_angle_to_electric_angle(__IO float angle)
 void vector_pwv(float *output,float angle,float v_amp)
 {
 
-	static float V=22.5;
 
- static float M_PI_3=M_PI/3.0f;
+	static float V=1;
 
- static float Tpwm=1.0;
+	static float M_PI_3=M_PI/3.0f;
 
-  float cons=1.732f*v_amp*Tpwm/V;
+	static float Tpwm=1.0;
 
-  angle=angle-floorf(angle/M_PI/2)*M_PI*2;
+	float cons=v_amp*Tpwm/V;
+
+	angle=angle-floorf(angle/M_PI/2)*M_PI*2;
 
 
-  float* T_=output;
+	float* T_=output;
 
   if((0.0f<=angle)&&(angle<=M_PI_3))
   {

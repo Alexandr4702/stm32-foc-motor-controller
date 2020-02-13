@@ -46,6 +46,12 @@ uint32_t pr_read_time;
 uint32_t read_period=20;
 
 
+
+
+
+uint32_t sending_period=1;
+uint32_t pr_sending_time=0;
+
 uint32_t ADC[3];
 
 /* USER CODE END PTD */
@@ -53,9 +59,7 @@ uint32_t ADC[3];
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define M_PI_ 	(float)M_PI
-#define EN_L     HAL_GPIO_WritePin(EN_ZATVOR_GPIO_Port, EN_ZATVOR_Pin, GPIO_PIN_RESET);   //
-#define EN_H     HAL_GPIO_WritePin(EN_ZATVOR_GPIO_Port, EN_ZATVOR_Pin, GPIO_PIN_SET);   //
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -67,6 +71,7 @@ uint32_t ADC[3];
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 ADC_HandleTypeDef hadc3;
+ADC_HandleTypeDef hadc4;
 
 I2C_HandleTypeDef hi2c2;
 
@@ -106,7 +111,7 @@ enum
 	current_control
 };
 
-uint8_t mode=	calibrate;
+uint8_t mode=	moment;
 
 typedef struct
 {
@@ -142,6 +147,7 @@ static void MX_OPAMP2_Init(void);
 static void MX_OPAMP3_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM20_Init(void);
+static void MX_ADC4_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_SPI3_Init(void);
 /* USER CODE BEGIN PFP */
@@ -252,13 +258,18 @@ int main(void)
   MX_OPAMP3_Init();
   MX_SPI2_Init();
   MX_TIM20_Init();
+  MX_ADC4_Init();
   MX_I2C2_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
+//  volatile int status__eeprom =ic_mu150_write_encoder_eeprom(&hi2c2);
+//
+//  int strlen= sprintf(str,"hello world %i\r\n",status__eeprom);
+//  HAL_UART_Transmit(&huart4,str,strlen,0xff);
+//
 
-
-
+//  while(1);
 
 
 
@@ -305,7 +316,7 @@ int main(void)
 
   //---------------------------------------------------------
   HAL_StatusTypeDef status= HAL_UART_Receive_DMA(&huart4,Rx0,size_pack);
-
+  uint16_t temp_adc;
 
   //--encoder-frequenc-------------------------------------------------------------------------
 
@@ -318,11 +329,13 @@ int main(void)
 	  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
 	  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
 	  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
+	  HAL_StatusTypeDef ok4 =HAL_ADC_Start(&hadc4);
+
 
 	  ADC[0]=hadc1.Instance->DR;
 	  ADC[1]=hadc2.Instance->DR;
 	  ADC[2]=hadc3.Instance->DR;
-
+	  temp_adc =hadc4.Instance->DR;
 
 
 	  dt=((float )DWT->CYCCNT/ (SystemCoreClock ));
@@ -355,13 +368,13 @@ int main(void)
 
 	  case moment:
 	  {
-		  m1.P=0.2;//fabsf(_phi_0);
+		  m1.P=0.1;//fabsf(_phi_0);
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
-		  m1.phi=t*20;
+		  m1.phi=t*0.5;
 
-		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
+		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
@@ -388,7 +401,7 @@ int main(void)
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 		  m1.P=PI_er>0.9?0.9:PI_er<0?0:PI_er;
 
-		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
+		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
@@ -415,7 +428,7 @@ int main(void)
 		  m1.P=PI_er>0.9?0.9:PI_er<0?0:PI_er;
 
 
-		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
+		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
@@ -424,10 +437,10 @@ int main(void)
 	  }
 	  case calibrate:
 	  {
-		  m1.P=0.2;//fabsf(_phi_0);
+		  m1.P=0.0;//fabsf(_phi_0);
 		  m1.phi=0;
 
-		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
+		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
@@ -445,11 +458,31 @@ int main(void)
 	  {
 
 
-		  I_2_phase I0=
-		  {
-				  .alpha=0.0,
-				  .betta=0.1
-		  };
+//		  I_2_phase I0=
+//		  {
+//				  .alpha=0.0,
+//				  .betta=0.1
+//		  };
+//		  I_3_phase I=
+//		  {
+//				  .A=ADC[0]*3.3f/4096.0f*6.06063f-10,
+//				  .B=ADC[1]*3.3f/4096.0f*6.06063f-10,
+//				  .C=ADC[2]*3.3f/4096.0f*6.06063f-10
+//		  };
+//
+//		  I_2_phase I_dq=DQ_transformation(&I,geom_angle_to_electric_angle(phi)*M_PI_/180.0f);
+//
+//		  I_2_phase U_c=
+//		  {
+//				  .alpha=(I0.alpha-I_dq.alpha)*0.08,
+//				  .betta=(I0.betta-I_dq.betta)*0.08
+//		  };
+//
+//		  m1.phi=atan2f(U_c.betta,U_c.alpha)-M_PI;
+//		  float power=sqrtf(U_c.betta*U_c.betta+U_c.alpha*U_c.alpha);
+//		  m1.P=((power<0.3)&&(power>0.0))?power:0;
+
+
 		  I_3_phase I=
 		  {
 				  .A=ADC[0]*3.3f/4096.0f*6.06063f-10,
@@ -457,19 +490,20 @@ int main(void)
 				  .C=ADC[2]*3.3f/4096.0f*6.06063f-10
 		  };
 
-		  I_2_phase I_dq=DQ_transformation(&I,geom_angle_to_electric_angle(phi)*M_PI_/180.0f);
+		  I_2_phase I_ab=Klark_transformation(&I);
 
-		  I_2_phase U_c=
-		  {
-				  .alpha=(I0.alpha-I_dq.alpha)*0.08,
-				  .betta=(I0.betta-I_dq.betta)*0.08
-		  };
+		  float I0;
+		  float I_abs=sqrtf(I_ab.alpha*I_ab.alpha+I_ab.betta*I_ab.betta);
+		  float I_e=I0-I_abs;
+		  float I_pid=I_e*1.0f;
 
-		  m1.phi=atan2f(U_c.betta,U_c.alpha)-M_PI;
-		  float power=sqrtf(U_c.betta*U_c.betta+U_c.alpha*U_c.alpha);
-		  m1.P=((power<0.3)&&(power>0.0))?power:0;
+		  m1.P=_phi_0;
+		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
+		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
-		  vector_pwv(T,-m1.phi,m1.P*22.5f/2.0f);
+
+
+		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
@@ -480,22 +514,27 @@ int main(void)
 
 
 
-
 	  //sinusoidal--PWM------------------------------------------------------------------------------------------
 //	  htim20.Instance->CCR1=(uint32_t)((m1.P*cosf(m1.phi)+1.0f)*m1.S);
 //	  htim20.Instance->CCR2=(uint32_t)((m1.P*cosf(m1.phi+2.0f*M_PI_/3.0f)+1.0f)*m1.S);
 //	  htim20.Instance->CCR3=(uint32_t)((m1.P*cosf(m1.phi-2.0f*M_PI_/3.0f)+1.0f)*m1.S);
 	  //sending--message-------------------------------------------------------------------------
-	  if(huart4.gState==HAL_UART_STATE_READY)
+	  if(HAL_GetTick()-pr_sending_time>sending_period)
 	  {
-		  send_data(
-				  ADC,
-				  &htim20.Instance->CCR1,
-				  ADC
-				  ,phi
-				  ,global_phi
-				  ,dt,_phi_0,omega_filtred);
+
+		  if(huart4.gState==HAL_UART_STATE_READY)
+		  {
+			  send_data(
+					  ADC,
+					  &htim20.Instance->CCR1,
+					  ADC
+					  ,phi
+					  ,global_phi
+					  ,dt,_phi_0,m1.phi);
+		  }
+		  pr_sending_time=HAL_GetTick();
 	  }
+
 	  //--------------------------------------------------------------------------------------------------------
 
 
@@ -878,6 +917,63 @@ static void MX_ADC3_Init(void)
   /* USER CODE BEGIN ADC3_Init 2 */
 
   /* USER CODE END ADC3_Init 2 */
+
+}
+
+/**
+  * @brief ADC4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC4_Init(void)
+{
+
+  /* USER CODE BEGIN ADC4_Init 0 */
+
+  /* USER CODE END ADC4_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC4_Init 1 */
+
+  /* USER CODE END ADC4_Init 1 */
+  /** Common config 
+  */
+  hadc4.Instance = ADC4;
+  hadc4.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc4.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc4.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc4.Init.GainCompensation = 0;
+  hadc4.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc4.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc4.Init.LowPowerAutoWait = DISABLE;
+  hadc4.Init.ContinuousConvMode = DISABLE;
+  hadc4.Init.NbrOfConversion = 1;
+  hadc4.Init.DiscontinuousConvMode = DISABLE;
+  hadc4.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc4.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc4.Init.DMAContinuousRequests = DISABLE;
+  hadc4.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc4.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel 
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc4, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC4_Init 2 */
+
+  /* USER CODE END ADC4_Init 2 */
 
 }
 

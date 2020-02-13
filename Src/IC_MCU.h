@@ -33,11 +33,11 @@ typedef struct __ic_mu150
 }ic_mu150;
 
 
-void read_eeprom(uint8_t number_byte,uint8_t* data,uint8_t number_of_bytes);
+void read_eeprom(uint8_t number_byte,uint8_t* data,uint8_t number_of_bytes,I2C_HandleTypeDef*);
 void write_page_eeprom(uint8_t number_page,uint8_t* data);
-void write_byte_eeprom(uint8_t number_byte,uint8_t byte);
+HAL_StatusTypeDef write_byte_eeprom(uint8_t number_byte,uint8_t byte,I2C_HandleTypeDef* hi2c);
 ic_mu150* ic_mu150_init(SPI_HandleTypeDef* _hspi,GPIO_TypeDef * _CS_PORT,uint16_t _CS_PIN,float bias);
-
+int ic_mu150_write_encoder_eeprom(I2C_HandleTypeDef * hi2c);
 
 
 #endif /* IC_MCU_H_ */
