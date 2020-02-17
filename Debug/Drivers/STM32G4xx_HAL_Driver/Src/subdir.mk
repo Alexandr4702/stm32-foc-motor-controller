@@ -11,6 +11,7 @@ C_SRCS += \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.c \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma_ex.c \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_exti.c \
+../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fdcan.c \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c \
 ../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ramfunc.c \
@@ -40,6 +41,7 @@ OBJS += \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.o \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma_ex.o \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_exti.o \
+./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fdcan.o \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.o \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.o \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ramfunc.o \
@@ -69,6 +71,7 @@ C_DEPS += \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma.d \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_dma_ex.d \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_exti.d \
+./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_fdcan.d \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.d \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.d \
 ./Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ramfunc.d \

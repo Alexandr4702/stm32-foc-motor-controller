@@ -22,6 +22,7 @@ Src/IC_MCU150.o: ../Src/IC_MCU150.c ../Src/IC_MCU.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_ll_adc.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_adc_ex.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h \
+ /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_fdcan.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ex.h \
  /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash_ramfunc.h \
@@ -85,6 +86,8 @@ Src/IC_MCU150.o: ../Src/IC_MCU150.c ../Src/IC_MCU.h \
 /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_adc_ex.h:
 
 /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_exti.h:
+
+/home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_fdcan.h:
 
 /home/gilg/workspace/STM32G474/stm32_g4veh_test/Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_flash.h:
 

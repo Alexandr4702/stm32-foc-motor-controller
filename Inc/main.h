@@ -65,12 +65,16 @@ void Error_Handler(void);
 #define EN_ZATVOR_GPIO_Port GPIOB
 #define DRIVER_FAULT_Pin GPIO_PIN_1
 #define DRIVER_FAULT_GPIO_Port GPIOE
+#define CAN_SDB_Pin GPIO_PIN_2
+#define CAN_SDB_GPIO_Port GPIOD
 #define SPI3_CS_Pin GPIO_PIN_15
 #define SPI3_CS_GPIO_Port GPIOA
 #define SPI2_CS_Pin GPIO_PIN_15
 #define SPI2_CS_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
-
+#define M_PI_ 	(float)M_PI
+#define EN_L     HAL_GPIO_WritePin(EN_ZATVOR_GPIO_Port, EN_ZATVOR_Pin, GPIO_PIN_RESET);   //
+#define EN_H     HAL_GPIO_WritePin(EN_ZATVOR_GPIO_Port, EN_ZATVOR_Pin, GPIO_PIN_SET);   //
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
