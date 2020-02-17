@@ -73,6 +73,8 @@ ADC_HandleTypeDef hadc2;
 ADC_HandleTypeDef hadc3;
 ADC_HandleTypeDef hadc4;
 
+FDCAN_HandleTypeDef hfdcan1;
+
 I2C_HandleTypeDef hi2c2;
 
 OPAMP_HandleTypeDef hopamp1;
@@ -150,6 +152,7 @@ static void MX_TIM20_Init(void);
 static void MX_ADC4_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_FDCAN1_Init(void);
 /* USER CODE BEGIN PFP */
 
 void send_data(__IO uint32_t *ADC_1,__IO uint32_t *ADC_2,__IO uint32_t *ADC_4,float phi,float GlobalPhi,float dt,float time,float omega)
@@ -216,6 +219,19 @@ void delay_ns(uint32_t ns)
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void FDCAN_Config(void);
+FDCAN_TxHeaderTypeDef message_can;
+//  ={
+//		  .Identifier=0x32,
+//		  .IdType=FDCAN_STANDARD_ID,
+//		  .TxFrameType=FDCAN_DATA_FRAME,
+//		  .DataLength=FDCAN_DLC_BYTES_8,
+//		  .ErrorStateIndicator=FDCAN_ESI_ACTIVE,
+//		  .BitRateSwitch=FDCAN_BRS_OFF,
+//		  .FDFormat=FDCAN_CLASSIC_CAN,
+//		  .TxEventFifoControl=FDCAN_STORE_TX_EVENTS,
+//		  .MessageMarker=0
+//  };
 
 /* USER CODE END 0 */
 
@@ -261,6 +277,7 @@ int main(void)
   MX_ADC4_Init();
   MX_I2C2_Init();
   MX_SPI3_Init();
+  MX_FDCAN1_Init();
   /* USER CODE BEGIN 2 */
 
 //  volatile int status__eeprom =ic_mu150_write_encoder_eeprom(&hi2c2);
@@ -269,7 +286,18 @@ int main(void)
 //  HAL_UART_Transmit(&huart4,str,strlen,0xff);
 //
 
-//  while(1);
+  if(0)
+  {
+	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
+	  FDCAN_Config();
+	  uint8_t data[8]={1,2,3,4,5,6,7,8};
+	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
+	  while(1)
+	  {
+		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
+
+	  }
+  }
 
 
 
@@ -332,9 +360,9 @@ int main(void)
 	  HAL_StatusTypeDef ok4 =HAL_ADC_Start(&hadc4);
 
 
-	  ADC[0]=hadc1.Instance->DR;
-	  ADC[1]=hadc2.Instance->DR;
-	  ADC[2]=hadc3.Instance->DR;
+	  ADC[2]=4095-hadc1.Instance->DR;//W
+	  ADC[0]=4095-hadc2.Instance->DR;//U
+	  ADC[1]=4095-hadc3.Instance->DR;//V
 	  temp_adc =hadc4.Instance->DR;
 
 
@@ -368,16 +396,16 @@ int main(void)
 
 	  case moment:
 	  {
-		  m1.P=0.1;//fabsf(_phi_0);
+		  m1.P=0.06;//fabsf(_phi_0);
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
 		  m1.phi=t*0.5;
 
 		  vector_pwv(T,-m1.phi,m1.P);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
 		  break;
 	  }
 	  case velo:
@@ -402,9 +430,9 @@ int main(void)
 		  m1.P=PI_er>0.9?0.9:PI_er<0?0:PI_er;
 
 		  vector_pwv(T,-m1.phi,m1.P);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
 		  break;
 	  }
 	  case pos:
@@ -429,9 +457,9 @@ int main(void)
 
 
 		  vector_pwv(T,-m1.phi,m1.P);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
 		  break;
 		  }
 	  }
@@ -441,9 +469,9 @@ int main(void)
 		  m1.phi=0;
 
 		  vector_pwv(T,-m1.phi,m1.P);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
 		  break;
 	  }
 
@@ -504,9 +532,9 @@ int main(void)
 
 
 		  vector_pwv(T,-m1.phi,m1.P);
-		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);
-		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);
-		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);
+		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
+		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
+		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
 		  break;
 	  }
 
@@ -722,9 +750,11 @@ void SystemClock_Config(void)
   /** Initializes the peripherals clocks 
   */
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_UART4|RCC_PERIPHCLK_I2C2
-                              |RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_ADC345;
+                              |RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_ADC345
+                              |RCC_PERIPHCLK_FDCAN;
   PeriphClkInit.Uart4ClockSelection = RCC_UART4CLKSOURCE_PCLK1;
   PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
+  PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
   PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
@@ -974,6 +1004,49 @@ static void MX_ADC4_Init(void)
   /* USER CODE BEGIN ADC4_Init 2 */
 
   /* USER CODE END ADC4_Init 2 */
+
+}
+
+/**
+  * @brief FDCAN1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FDCAN1_Init(void)
+{
+
+  /* USER CODE BEGIN FDCAN1_Init 0 */
+
+  /* USER CODE END FDCAN1_Init 0 */
+
+  /* USER CODE BEGIN FDCAN1_Init 1 */
+
+  /* USER CODE END FDCAN1_Init 1 */
+  hfdcan1.Instance = FDCAN1;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV10;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
+  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+  hfdcan1.Init.AutoRetransmission = DISABLE;
+  hfdcan1.Init.TransmitPause = DISABLE;
+  hfdcan1.Init.ProtocolException = DISABLE;
+  hfdcan1.Init.NominalPrescaler = 19;
+  hfdcan1.Init.NominalSyncJumpWidth = 1;
+  hfdcan1.Init.NominalTimeSeg1 = 14;
+  hfdcan1.Init.NominalTimeSeg2 = 2;
+  hfdcan1.Init.DataPrescaler = 1;
+  hfdcan1.Init.DataSyncJumpWidth = 1;
+  hfdcan1.Init.DataTimeSeg1 = 1;
+  hfdcan1.Init.DataTimeSeg2 = 1;
+  hfdcan1.Init.StdFiltersNbr = 0;
+  hfdcan1.Init.ExtFiltersNbr = 0;
+  hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_QUEUE_OPERATION;
+  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN FDCAN1_Init 2 */
+
+  /* USER CODE END FDCAN1_Init 2 */
 
 }
 
@@ -1377,13 +1450,16 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(EN_ZATVOR_GPIO_Port, EN_ZATVOR_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI3_CS_GPIO_Port, SPI3_CS_Pin, GPIO_PIN_SET);
@@ -1403,6 +1479,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(DRIVER_FAULT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CAN_SDB_Pin */
+  GPIO_InitStruct.Pin = CAN_SDB_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CAN_SDB_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SPI3_CS_Pin */
   GPIO_InitStruct.Pin = SPI3_CS_Pin;
@@ -1468,6 +1551,52 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 
 
+static void FDCAN_Config(void)
+{
+  FDCAN_FilterTypeDef sFilterConfig;
+
+  /* Configure Rx filter */
+  sFilterConfig.IdType = FDCAN_STANDARD_ID;
+  sFilterConfig.FilterIndex = 0;
+  sFilterConfig.FilterType = FDCAN_FILTER_MASK;
+  sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+  sFilterConfig.FilterID1 = 0x321;
+  sFilterConfig.FilterID2 = 0x7FF;
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Configure global filter:
+     Filter all remote frames with STD and EXT ID
+     Reject non matching frames with STD ID and EXT ID */
+  if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Start the FDCAN module */
+  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Prepare Tx Header */
+  message_can.Identifier = 0x321;
+  message_can.IdType = FDCAN_STANDARD_ID;
+  message_can.TxFrameType = FDCAN_DATA_FRAME;
+  message_can.DataLength = FDCAN_DLC_BYTES_2;
+  message_can.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+  message_can.BitRateSwitch = FDCAN_BRS_OFF;
+  message_can.FDFormat = FDCAN_CLASSIC_CAN;
+  message_can.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+  message_can.MessageMarker = 0;
+}
 
 
 
