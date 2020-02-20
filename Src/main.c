@@ -134,6 +134,7 @@ motor_const m1=
 };
 
 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -210,10 +211,18 @@ void delay_ns(uint32_t ns)
     while(DWT->CYCCNT < ns_count_tic);
 }
 
+int compare(const void * x1, const void * x2)
+{
+  return ( *(uint32_t*)x1 - *(uint32_t*)x2 );
+}
 
-
-
-
+uint32_t min_value(__IO uint32_t * data)
+{
+	uint32_t ptr[3];
+	memcpy(ptr,data,12);
+	qsort(ptr, 3, sizeof(uint32_t), compare);
+	return ptr[2];//ptr[1]+(ptr[2]-ptr[1])/2;
+}
 
 /* USER CODE END PFP */
 
@@ -284,17 +293,18 @@ int main(void)
 //
 //  int strlen= sprintf(str,"hello world %i\r\n",status__eeprom);
 //  HAL_UART_Transmit(&huart4,str,strlen,0xff);
+////
+//  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
 //
-
   if(0)
   {
-	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
+//	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
 	  FDCAN_Config();
 	  uint8_t data[8]={1,2,3,4,5,6,7,8};
 	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
 	  while(1)
 	  {
-		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
+//		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
 
 	  }
   }
@@ -325,6 +335,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim20, TIM_CHANNEL_3);
   HAL_TIMEx_OCN_Start(&htim20, TIM_CHANNEL_3);
 
+  HAL_TIM_PWM_Start_IT(&htim20, TIM_CHANNEL_4);
+
   float T[3];
   m1.P=0.1;
   m1.phi=0;
@@ -345,18 +357,19 @@ int main(void)
   //---------------------------------------------------------
   HAL_StatusTypeDef status= HAL_UART_Receive_DMA(&huart4,Rx0,size_pack);
   uint16_t temp_adc;
-
   //--encoder-frequenc-------------------------------------------------------------------------
-
+  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
+  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
+  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
-	  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
-	  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
+//	  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
+//	  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
+//	  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
 	  HAL_StatusTypeDef ok4 =HAL_ADC_Start(&hadc4);
 
 
@@ -396,7 +409,7 @@ int main(void)
 
 	  case moment:
 	  {
-		  m1.P=0.06;//fabsf(_phi_0);
+		  m1.P=0.1;//fabsf(_phi_0);
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
@@ -406,6 +419,8 @@ int main(void)
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
+
+		  htim20.Instance->CCR4=min_value(&htim20.Instance->CCR1);
 		  break;
 	  }
 	  case velo:
@@ -520,14 +535,29 @@ int main(void)
 
 		  I_2_phase I_ab=Klark_transformation(&I);
 
-		  float I0;
-		  float I_abs=sqrtf(I_ab.alpha*I_ab.alpha+I_ab.betta*I_ab.betta);
-		  float I_e=I0-I_abs;
-		  float I_pid=I_e*1.0f;
+		  I_2_phase I0_ab=
+		  {
+				  .alpha=0,
+				  .betta=0
+		  };
 
-		  m1.P=_phi_0;
-		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
-		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
+		  I_2_phase I_error;
+		  static I_2_phase I_error_privious=
+		  {
+				  .alpha=0,
+				  .betta=0
+		  };
+		  static I_2_phase I_error_integtral=
+		  {
+			  .alpha=0,
+			  .betta=0
+		  };
+
+		  I_error.alpha=I0_ab.alpha-I_ab.alpha;
+		  I_error.betta=I0_ab.betta-I_ab.betta;
+
+
+
 
 
 
@@ -794,8 +824,8 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T20_TRGO;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc1.Init.OversamplingMode = DISABLE;
@@ -858,8 +888,8 @@ static void MX_ADC2_Init(void)
   hadc2.Init.ContinuousConvMode = DISABLE;
   hadc2.Init.NbrOfConversion = 1;
   hadc2.Init.DiscontinuousConvMode = DISABLE;
-  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T20_TRGO;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc2.Init.DMAContinuousRequests = DISABLE;
   hadc2.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc2.Init.OversamplingMode = DISABLE;
@@ -916,8 +946,8 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ContinuousConvMode = DISABLE;
   hadc3.Init.NbrOfConversion = 1;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T20_TRGO;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc3.Init.DMAContinuousRequests = DISABLE;
   hadc3.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc3.Init.OversamplingMode = DISABLE;
@@ -1029,10 +1059,10 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
-  hfdcan1.Init.NominalPrescaler = 19;
+  hfdcan1.Init.NominalPrescaler = 170;
   hfdcan1.Init.NominalSyncJumpWidth = 1;
-  hfdcan1.Init.NominalTimeSeg1 = 14;
-  hfdcan1.Init.NominalTimeSeg2 = 2;
+  hfdcan1.Init.NominalTimeSeg1 = 4;
+  hfdcan1.Init.NominalTimeSeg2 = 3;
   hfdcan1.Init.DataPrescaler = 1;
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 1;
@@ -1318,7 +1348,7 @@ static void MX_TIM20_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC4REF;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim20, &sMasterConfig) != HAL_OK)
@@ -1343,6 +1373,13 @@ static void MX_TIM20_Init(void)
   }
   sConfigOC.Pulse = 0;
   if (HAL_TIM_PWM_ConfigChannel(&htim20, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.Pulse = 2048;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  if (HAL_TIM_PWM_ConfigChannel(&htim20, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1599,7 +1636,13 @@ static void FDCAN_Config(void)
 }
 
 
+void HAL_CAN_TxMailbox0CompleteCallback(FDCAN_HandleTypeDef *hcan)
+{
+if(12)
+{
 
+}
+}
 
 /* USER CODE END 4 */
 
