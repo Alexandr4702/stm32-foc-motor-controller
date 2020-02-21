@@ -15,6 +15,8 @@ C_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+CanOpen_config \
+CanOpen_stack \
 Drivers/STM32G4xx_HAL_Driver/Src \
 Src \
 foc \

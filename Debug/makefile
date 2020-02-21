@@ -13,6 +13,8 @@ RM := rm -rf
 -include foc/subdir.mk
 -include Src/subdir.mk
 -include Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk
+-include CanOpen_stack/subdir.mk
+-include CanOpen_config/subdir.mk
 -include subdir.mk
 -include objects.mk
 
