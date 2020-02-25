@@ -22,7 +22,8 @@ typedef unsigned char           oChar_t;
 typedef unsigned char           domain_t;
 
 
-typedef struct{
+typedef struct
+{
     uint32_t            ident;
     uint8_t             DLC ;
     uint8_t             data[8];
