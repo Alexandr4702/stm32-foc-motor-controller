@@ -30,22 +30,34 @@ float geom_angle_to_electric_angle(__IO float angle)
 	float curr_n=(temp-floorf(temp));
 	return curr_n*360.0f;
 }
+/*
+ * @brief:
+ *
+ * @parametr:
+ *
+ *output
+ *
+ *angle
+ *
+ *v_amp
+ *
+ *
+ */
+void sinsoidal_pwm( float *output,float angle ,float v_amp )
+{
+	output[0]=(v_amp*cosf(angle)+1.0f);
+	output[1]=(v_amp*cosf(angle+2.0f*M_PI_/3.0f)+1.0f);
+	output[2]=(v_amp*cosf(angle-2.0f*M_PI_/3.0f)+1.0f);
+
+}
 
 void vector_pwv(float *output,float angle,float v_amp)
 {
-
-
 	static float V=1;
-
 	static float M_PI_3=M_PI/3.0f;
-
 	static float Tpwm=1.0;
-
 	float cons=v_amp*Tpwm/V;
-
 	angle=angle-floorf(angle/M_PI/2)*M_PI*2;
-
-
 	float* T_=output;
 
   if((0.0f<=angle)&&(angle<=M_PI_3))
@@ -70,12 +82,13 @@ void vector_pwv(float *output,float angle,float v_amp)
 	  float t2=cons*sinf(angle);
 	  float t0=Tpwm-t1-t2;
 
+
 	  float T1=t1+t2+t0/2;
 	  float T3=t1+t0/2;
 
-    T_[0]=T3;
-    T_[1]=T1;
-    T_[2]=t0/2;
+		T_[0]=T3;
+		T_[1]=T1;
+		T_[2]=t0/2;
   }
   else if((M_PI_3*2<angle)&&(angle<=3*M_PI_3))
   {

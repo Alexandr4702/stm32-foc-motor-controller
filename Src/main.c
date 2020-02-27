@@ -30,13 +30,16 @@
 #include "../foc/foc.h"
 
 #include "../parser_1010/parser_1010.h"
+
+
+#include "CANopen.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 uint8_t message[200]={0x10,0x10};
 
-
+//for serial port
 #define size_pack	500
 uint8_t Rx0[size_pack];
 uint8_t Rx1[size_pack];
@@ -44,9 +47,6 @@ uint8_t* current_buf=Rx0;
 uint32_t pr_CNDTR=size_pack;
 uint32_t pr_read_time;
 uint32_t read_period=20;
-
-
-
 
 
 uint32_t sending_period=1;
@@ -296,15 +296,18 @@ int main(void)
 ////
 //  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
 //
-  if(0)
+
+
+  if(1)
   {
-//	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
-	  FDCAN_Config();
-	  uint8_t data[8]={1,2,3,4,5,6,7,8};
-	  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
+	  CO_ReturnError_t err = CO_init(&hfdcan1, 1/* NodeID */, 500 /* bit rate */);
+	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
+
+
+	  CO_sendNMTcommand(CO,CO_NMT_ENTER_OPERATIONAL,0x25);
+
 	  while(1)
 	  {
-//		  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1,&message_can,data);
 
 	  }
   }
@@ -409,16 +412,17 @@ int main(void)
 
 	  case moment:
 	  {
-		  m1.P=0.1;//fabsf(_phi_0);
+		  m1.P=0.07;//fabsf(_phi_0);
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
-		  m1.phi=t*0.5;
+		  m1.phi=t*2;//_phi_0*M_PI_/180.0f;
 
 		  vector_pwv(T,-m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
+
 
 		  htim20.Instance->CCR4=min_value(&htim20.Instance->CCR1);
 		  break;
@@ -572,11 +576,9 @@ int main(void)
 
 
 
-	  //sinusoidal--PWM------------------------------------------------------------------------------------------
-//	  htim20.Instance->CCR1=(uint32_t)((m1.P*cosf(m1.phi)+1.0f)*m1.S);
-//	  htim20.Instance->CCR2=(uint32_t)((m1.P*cosf(m1.phi+2.0f*M_PI_/3.0f)+1.0f)*m1.S);
-//	  htim20.Instance->CCR3=(uint32_t)((m1.P*cosf(m1.phi-2.0f*M_PI_/3.0f)+1.0f)*m1.S);
 	  //sending--message-------------------------------------------------------------------------
+
+		  //TODO  put in a separate task
 	  if(HAL_GetTick()-pr_sending_time>sending_period)
 	  {
 
@@ -596,43 +598,43 @@ int main(void)
 	  //--------------------------------------------------------------------------------------------------------
 
 
-	  		  if(huart4.RxState==HAL_UART_STATE_READY)
-	  		  {
-	  			  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
-	  			  uint8_t* buff=huart4.pRxBuffPtr+size_pack-size-huart4.hdmarx->Instance->CNDTR;
+	  if(huart4.RxState==HAL_UART_STATE_READY)
+	  {
+		  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
+		  uint8_t* buff=huart4.pRxBuffPtr+size_pack-size-huart4.hdmarx->Instance->CNDTR;
 
 
-	  			  if(huart4.pRxBuffPtr==Rx0)
-	  			  {
-	  				  HAL_UART_Receive_DMA(&huart4,Rx1,500);
-	  			  }
-	  			  else if(huart4.pRxBuffPtr==Rx1)
-	  			  {
-	  				  HAL_UART_Receive_DMA(&huart4,Rx0,500);
-	  			  }
+		  if(huart4.pRxBuffPtr==Rx0)
+		  {
+			  HAL_UART_Receive_DMA(&huart4,Rx1,500);
+		  }
+		  else if(huart4.pRxBuffPtr==Rx1)
+		  {
+			  HAL_UART_Receive_DMA(&huart4,Rx0,500);
+		  }
 
-	  				  uint8_t pa;
-	  				  messageStack stack;
-	  				  do
-	  				  {
-	  					  pa=parser(buff,&size,&stack);
-	  					  if((pa&0x40)==0x40)
-	  					  {
-	  						  switch(pa&0x3f)
-	  						  {
-	  						  case defaultMessageId:
-	  							  _phi_0=stack.defaultMessage_.cnt;
-	  							  break;
-	  						  case McdataId:
-	  							  break;
-	  						  }
-	  					  }
-	  				  }
-	  				  while((pa&0x80)==0x80&&(size>0));
-	  				  current_buf=huart4.pRxBuffPtr;
-	  				  pr_CNDTR=size_pack;
+			  uint8_t pa;
+			  messageStack stack;
+			  do
+			  {
+				  pa=parser(buff,&size,&stack);
+				  if((pa&0x40)==0x40)
+				  {
+					  switch(pa&0x3f)
+					  {
+					  case defaultMessageId:
+						  _phi_0=stack.defaultMessage_.cnt;
+						  break;
+					  case McdataId:
+						  break;
+					  }
+				  }
+			  }
+			  while((pa&0x80)==0x80&&(size>0));
+			  current_buf=huart4.pRxBuffPtr;
+			  pr_CNDTR=size_pack;
 
-	  		  }
+	  }
 
 
 	  	//-------------------------------------------------------------------------------------
@@ -642,91 +644,84 @@ int main(void)
 	  		   *
 	  		   *
 	  		   */
-	  		  if(HAL_GetTick()-pr_read_time>=read_period)
-	  		  {
+	  		  //TODO  put in a separate task
+	  if(HAL_GetTick()-pr_read_time>=read_period)
+	  {
 
-	  			  if(current_buf!=huart4.pRxBuffPtr)
-	  			  {
+		  if(current_buf!=huart4.pRxBuffPtr)
+		  {
 
-	  				  uint16_t size=pr_CNDTR;
-	  				  uint8_t pa;
-	  				  messageStack stack;
-	  				  do
-	  				  {
-	  					  pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
-	  					  if((pa&0x40)==0x40)
-	  					  {
-	  						  switch(pa&0x3f)
-	  						  {
-	  						  case defaultMessageId:
-	  							  _phi_0=stack.defaultMessage_.cnt;
-	  							  break;
-	  						  case McdataId:
-	  							  break;
-	  						  }
-	  					  }
-	  				  }
-	  				  while((pa&0x80)==0x80&&(size>0));
-
-	  				  current_buf=huart4.pRxBuffPtr;
-	  				  pr_CNDTR=size_pack;
-
-	  				  {
-
-	  					  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
-	  					  uint8_t pa;
-	  					  messageStack stack;
-	  					  do
-	  					  {
-	  						  pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
-	  						  if((pa&0x40)==0x40)
-	  						  {
-	  							  switch(pa&0x3f)
-	  							  {
-	  							  case defaultMessageId:
-	  								  _phi_0=stack.defaultMessage_.cnt;
-	  								  break;
-	  							  case McdataId:
-	  								  break;
-	  							  }
-	  						  }
-
-	  					  }
-	  					  while((pa&0x80)==0x80&&(size>0));
-	  					  pr_read_time=HAL_GetTick();
-
-	  				  }
-
-
-	  			  }
-	  			  else
-	  			  {
-	  				  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
-	  				  if(size>0)
-	  				  {
-	  					    pr_CNDTR=huart4.hdmarx->Instance->CNDTR;
-	  					    uint8_t pa;
-	  					    messageStack stack;
-	  					    do
-	  					    {
-	  					         pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
-	  							  if((pa&0x40)==0x40)
-	  							  {
-	  								  switch(pa&0x3f)
-	  								  {
-	  								  case defaultMessageId:
-	  									  _phi_0=stack.defaultMessage_.cnt;
-	  									  break;
-	  								  case McdataId:
-	  									  break;
-	  								  }
-	  							  }
-
-	  					    }while((pa&0x80)==0x80&&(size>0));
-	  				  }
-	  				  pr_read_time=HAL_GetTick();
-	  			  }
-	  		  }
+			  uint16_t size=pr_CNDTR;
+			  uint8_t pa;
+			  messageStack stack;
+			  do
+			  {
+				  pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
+				  if((pa&0x40)==0x40)
+				  {
+					  switch(pa&0x3f)
+					  {
+					  case defaultMessageId:
+						  _phi_0=stack.defaultMessage_.cnt;
+						  break;
+					  case McdataId:
+						  break;
+					  }
+				  }
+			  }
+			  while((pa&0x80)==0x80&&(size>0));
+			  current_buf=huart4.pRxBuffPtr;
+			  pr_CNDTR=size_pack;
+			  {
+				  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
+				  uint8_t pa;
+				  messageStack stack;
+				  do
+				  {
+					  pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
+					  if((pa&0x40)==0x40)
+					  {
+						  switch(pa&0x3f)
+						  {
+						  case defaultMessageId:
+							  _phi_0=stack.defaultMessage_.cnt;
+							  break;
+						  case McdataId:
+							  break;
+						  }
+					  }
+				  }
+				  while((pa&0x80)==0x80&&(size>0));
+				  pr_read_time=HAL_GetTick();
+			  }
+		  }
+		  else
+		  {
+			  uint16_t size=pr_CNDTR-huart4.hdmarx->Instance->CNDTR;
+			  if(size>0)
+			  {
+					pr_CNDTR=huart4.hdmarx->Instance->CNDTR;
+					uint8_t pa;
+					messageStack stack;
+					do
+					{
+						pa=parser(current_buf+size_pack-size-huart4.hdmarx->Instance->CNDTR,&size,&stack);
+						  if((pa&0x40)==0x40)
+						  {
+							  switch(pa&0x3f)
+							  {
+							  case defaultMessageId:
+								  _phi_0=stack.defaultMessage_.cnt;
+								  break;
+							  case McdataId:
+								  break;
+							  }
+						  }
+					}while((pa&0x80)==0x80&&(size>0));
+			  }
+			  pr_read_time=HAL_GetTick();
+		  }
+	  }
 
 
     /* USER CODE END WHILE */
@@ -1053,7 +1048,7 @@ static void MX_FDCAN1_Init(void)
 
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
-  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV10;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_NO_BRS;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = DISABLE;
@@ -1588,62 +1583,43 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 }
 
 
-static void FDCAN_Config(void)
+HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
 {
-  FDCAN_FilterTypeDef sFilterConfig;
-
-  /* Configure Rx filter */
-  sFilterConfig.IdType = FDCAN_STANDARD_ID;
-  sFilterConfig.FilterIndex = 0;
-  sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-  sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-  sFilterConfig.FilterID1 = 0x321;
-  sFilterConfig.FilterID2 = 0x7FF;
-  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* Configure global filter:
-     Filter all remote frames with STD and EXT ID
-     Reject non matching frames with STD ID and EXT ID */
-  if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* Start the FDCAN module */
-  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* Prepare Tx Header */
-  message_can.Identifier = 0x321;
-  message_can.IdType = FDCAN_STANDARD_ID;
-  message_can.TxFrameType = FDCAN_DATA_FRAME;
-  message_can.DataLength = FDCAN_DLC_BYTES_2;
-  message_can.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
-  message_can.BitRateSwitch = FDCAN_BRS_OFF;
-  message_can.FDFormat = FDCAN_CLASSIC_CAN;
-  message_can.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
-  message_can.MessageMarker = 0;
+	strl=sprintf((char*)str,"message_sended\r\n");
+	HAL_UART_Transmit_DMA(&huart4,str,strl);
 }
 
 
-void HAL_CAN_TxMailbox0CompleteCallback(FDCAN_HandleTypeDef *hcan)
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+
+
+	FDCAN_RxHeaderTypeDef rx;
+	CO_CANrxMsg_t can_open_msg;
+	HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO0,&rx,can_open_msg.data);
+
+
+	can_open_msg.DLC=rx.DataLength>>16;
+	can_open_msg.ident=rx.Identifier&CAN_SFF_MASK;
+
+	can_interrupt_rx(CO->CANmodule[0], &can_open_msg);
 	if(1)
 	{
 
+		strl=sprintf((char*)str,"message_recived0\r\n");
+		HAL_UART_Transmit_DMA(&huart4,str,strl);
+
+
 	}
 }
-
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
+{
+	if(1)
+	{
+		strl=sprintf((char*)str,"message_recived1\r\n");
+		HAL_UART_Transmit_DMA(&huart4,str,strl);
+	}
+}
 /* USER CODE END 4 */
 
 /**
