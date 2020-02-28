@@ -17,6 +17,11 @@ void CO_CANsetConfigurationMode(void *CANdriverState)
 
 void CO_CANsetNormalMode(CO_CANmodule_t *CANmodule)
 {
+    if(CANmodule == NULL  != CO_ERROR_NO){
+        CO_errExit("CO_CANsetNormalMode failed");
+    }
+
+    CANmodule->CANnormal = true;
 
 }
 
@@ -242,7 +247,7 @@ void can_interrupt_rx(CO_CANmodule_t *CANmodule,CO_CANrxMsg_t* message)
 		int i;
 		bool_t msgMatched = false;
 
-		rcvMsg = (CO_CANrxMsg_t *) &message;
+		rcvMsg = (CO_CANrxMsg_t *) message;
 		rcvMsgIdent = rcvMsg->ident;
 
 		/* Search rxArray form CANmodule for the matching CAN-ID. */

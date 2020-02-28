@@ -301,6 +301,7 @@ int main(void)
   if(1)
   {
 	  CO_ReturnError_t err = CO_init(&hfdcan1, 1/* NodeID */, 500 /* bit rate */);
+      CO_CANsetNormalMode(CO->CANmodule[0]);
 	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
 
 
@@ -308,7 +309,8 @@ int main(void)
 
 	  while(1)
 	  {
-
+		  CO_process(CO, 1, NULL);
+		  HAL_Delay(1);
 	  }
   }
 
@@ -1592,8 +1594,6 @@ HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferI
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-
-
 	FDCAN_RxHeaderTypeDef rx;
 	CO_CANrxMsg_t can_open_msg;
 	HAL_FDCAN_GetRxMessage(hfdcan,FDCAN_RX_FIFO0,&rx,can_open_msg.data);
