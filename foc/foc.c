@@ -53,10 +53,13 @@ void sinsoidal_pwm( float *output,float angle ,float v_amp )
 
 void vector_pwv(float *output,float angle,float v_amp)
 {
-	static float V=1;
 	static float M_PI_3=M_PI/3.0f;
+
+//	static float V=1;
 	static float Tpwm=1.0;
-	float cons=v_amp*Tpwm/V;
+//	float cons=v_amp*Tpwm/V;
+	float cons=v_amp;// Indeed lol
+
 	angle=angle-floorf(angle/M_PI/2)*M_PI*2;
 	float* T_=output;
 

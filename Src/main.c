@@ -303,14 +303,17 @@ int main(void)
 	  CO_ReturnError_t err = CO_init(&hfdcan1, 1/* NodeID */, 500 /* bit rate */);
       CO_CANsetNormalMode(CO->CANmodule[0]);
 	  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
-
+	  DWT_init();
 
 	  CO_sendNMTcommand(CO,CO_NMT_ENTER_OPERATIONAL,0x25);
+
+	  __IO uint16_t entrno=CO_OD_find(CO->SDO[0],0x6000);
+
 
 	  while(1)
 	  {
 		  CO_process(CO, 1, NULL);
-		  HAL_Delay(1);
+		  delay_us(1000);
 	  }
   }
 
@@ -418,9 +421,9 @@ int main(void)
 		  float sign =_phi_0==0?0:_phi_0/fabsf(_phi_0);
 		  m1.phi=geom_angle_to_electric_angle(phi)*M_PI_/180.0f+M_PI_/2*sign;
 
-		  m1.phi=t*2;//_phi_0*M_PI_/180.0f;
+		  m1.phi=-t*2;//_phi_0*M_PI_/180.0f;
 
-		  vector_pwv(T,-m1.phi,m1.P);
+		  vector_pwv(T,m1.phi,m1.P);
 		  htim20.Instance->CCR1=(uint32_t)(T[0]*htim20.Instance->ARR);//U
 		  htim20.Instance->CCR2=(uint32_t)(T[1]*htim20.Instance->ARR);//V
 		  htim20.Instance->CCR3=(uint32_t)(T[2]*htim20.Instance->ARR);//W
