@@ -14,7 +14,7 @@ uint8_t checksum(void *data, uint16_t size)
 {
     uint8_t crc = 0;
     uint16_t i;
-    for (i = 0; i < size - 1; i++)
+    for (i = 0; i < size; i++)
     {
         crc ^= ((uint8_t *)data)[i];
     }
@@ -185,6 +185,6 @@ void generate_message(void *message, void *const data, uint8_t id, uint16_t size
     ((char *)message)[0] = 0x10;
     ((char *)message)[1] = 0x10;
     ((char *)message)[2] = id;
-    memcpy(message + 3, data + 1, size - 1);
-    ((char *)message)[size + 1] = checksum(message + 2, size - 1);
+    memcpy((uint8_t *)message + 3, (const uint8_t *)data + 1, size - 1);
+    ((char *)message)[size + 1] = checksum((uint8_t *)message + 2, size - 1);
 }

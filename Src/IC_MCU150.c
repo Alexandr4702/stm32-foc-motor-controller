@@ -113,14 +113,15 @@ HAL_StatusTypeDef write_byte_eeprom(uint8_t number_byte, uint8_t byte, I2C_Handl
         return HAL_ERROR;
     }
     HAL_Delay(4);
+    return HAL_OK;
 }
 
 void read_eeprom(uint8_t number_byte, uint8_t *data, uint8_t number_of_bytes,
                  I2C_HandleTypeDef *hi2c)
 {
     uint8_t tx = number_byte;
-    HAL_I2C_Master_Transmit(&hi2c, 0xa0, &tx, 1, 0xff);
-    HAL_I2C_Master_Receive(&hi2c, 0xa0, data, number_of_bytes, 0xff);
+    HAL_I2C_Master_Transmit(hi2c, 0xa0, &tx, 1, 0xff);
+    HAL_I2C_Master_Receive(hi2c, 0xa0, data, number_of_bytes, 0xff);
 }
 
 void get_angle(struct __ic_mu150 *ic_mu)
@@ -161,7 +162,7 @@ int ic_mu150_write_encoder_eeprom(I2C_HandleTypeDef *hi2c)
             return -1;
         }
     }
-    uint8_t rx[200];
-    read_eeprom(0, rx, 127, hi2c);
-    return memcmp(rx, eepromi2c, 127);
+    uint8_t rx[sizeof(eepromi2c)];
+    read_eeprom(0, rx, sizeof(rx), hi2c);
+    return memcmp(rx, eepromi2c, sizeof(eepromi2c));
 }
