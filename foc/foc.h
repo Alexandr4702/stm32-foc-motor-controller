@@ -39,7 +39,7 @@ I_3_phase PI_regulator_3ph(I_3_phase *I0, I_3_phase *I, float delta_t);
 I_3_phase DQ_transformation_(const I_3_phase *I, float thetta);
 I_3_phase DQ_Inverse_transformation_(const I_3_phase *I, float thetta);
 
-void vector_pwv(float *exit, float angle, float v_amp);
+void vector_pwm(float *output, float angle, float v_amp);
 float geom_angle_to_electric_angle(__IO float angle);
 
 #endif /* FOC_H_ */

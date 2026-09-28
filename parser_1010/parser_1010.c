@@ -21,10 +21,10 @@ uint8_t checksum(void *data, uint16_t size)
     return crc;
 }
 
-/*parser for message format 0x10 0x10 data crc
- *data - data for parsing
- *size - size's data for parsing after calling function return how mutch left
- *return - return id message if after pars message left bytes high byte is 1
+/* Parser for messages formatted as 0x10 0x10 data crc.
+ * data - data to parse
+ * size - available data size; updated with the number of bytes left
+ * return - message ID and status flags
  */
 uint8_t parser(uint8_t *const data, uint16_t *size, messageStack *stack)
 {
@@ -173,11 +173,10 @@ uint8_t parser(uint8_t *const data, uint16_t *size, messageStack *stack)
     return 0;
 }
 
-/*
- *generate message  for sending (adds 0x10 0x10 to beggin and calculate crc in penultimate bytes  )
- *message - pointer at message have to be bigger then size+2
- *data - data for transimtting
- *size - size data for transimtting
+/* Generate a message for transmission, adding the 0x10 0x10 prefix and CRC.
+ * message - output buffer of at least size + 2 bytes
+ * data - data to transmit
+ * size - data size
  */
 
 void generate_message(void *message, void *const data, uint8_t id, uint16_t size)

@@ -7,18 +7,9 @@
 
 #include "../foc/foc.h"
 
-// static float K_p=.5f;
-// static float K_i=0.1;
-
 static float K_p = 3.0f;
 static float K_i = 0.1;
 #define M_PI_ (float)M_PI
-
-// float delta_t=0.01f;
-/*
- * brif
- * transform_dq
- */
 
 float geom_angle_to_electric_angle(__IO float angle)
 {
@@ -28,34 +19,12 @@ float geom_angle_to_electric_angle(__IO float angle)
     float curr_n = (temp - floorf(temp));
     return curr_n * 360.0f;
 }
-/*
- * @brief:
- *
- * @parametr:
- *
- *output
- *
- *angle
- *
- *v_amp
- *
- *
- */
-void sinsoidal_pwm(float *output, float angle, float v_amp)
-{
-    output[0] = (v_amp * cosf(angle) + 1.0f);
-    output[1] = (v_amp * cosf(angle + 2.0f * M_PI_ / 3.0f) + 1.0f);
-    output[2] = (v_amp * cosf(angle - 2.0f * M_PI_ / 3.0f) + 1.0f);
-}
-
-void vector_pwv(float *output, float angle, float v_amp)
+void vector_pwm(float *output, float angle, float v_amp)
 {
     static float M_PI_3 = M_PI / 3.0f;
 
-    //	static float V=1;
     static float Tpwm = 1.0;
-    //	float cons=v_amp*Tpwm/V;
-    float cons = v_amp; // Indeed lol
+    float cons = v_amp;
 
     angle = angle - floorf(angle / M_PI / 2) * M_PI * 2;
     float *T_ = output;
@@ -183,9 +152,6 @@ I_2_phase Klark_transformation(const I_3_phase *I)
 {
     I_2_phase ret;
 
-    // ret.alpha=I->A;
-    // ret.betta=(I->B-I->C)/1.732;
-
     ret.alpha = 0.666f * (I->A * 1.0f - I->B * 0.5 - I->C * 0.5f);
     ret.betta = 0.666f * (I->A * 0.0f + I->B * 0.866 - I->C * 0.866f);
     return ret;
@@ -273,9 +239,4 @@ I_3_phase PI_regulator_3ph(I_3_phase *I0, I_3_phase *I, float delta_t)
     ret.C = e.C * K_p + I_e.C * K_i; // iq
 
     return ret;
-}
-
-float Get_Angle(const I_3_phase *I, float thetta)
-{
-    return 0;
 }

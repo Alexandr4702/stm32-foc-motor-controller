@@ -29,7 +29,7 @@ typedef struct __ic_mu150
     uint16_t CS_PIN;
     float bias;
     float angle;
-    float (*read_angle)(struct __ic_mu150 *ic_mu150);
+    void (*read_angle)(struct __ic_mu150 *ic_mu150);
 } ic_mu150;
 
 void read_eeprom(uint8_t number_byte, uint8_t *data, uint8_t number_of_bytes, I2C_HandleTypeDef *);

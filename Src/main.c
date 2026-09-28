@@ -23,8 +23,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
-#include "IC_MCU.h"
 #include <math.h>
 #include <stdlib.h>
 #include "../foc/foc.h"
@@ -36,8 +34,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-uint8_t message[200] = {0x10, 0x10};
-
 // for serial port
 #define size_pack 500
 uint8_t Rx0[size_pack];
@@ -89,10 +85,9 @@ DMA_HandleTypeDef hdma_uart4_rx;
 
 /* USER CODE BEGIN PV */
 uint8_t str[200];
-int strl;
 
-float omega = 0, omega_pr = 0, omega_filtred = 0, K_omega = 0.0008, omega_0 = 360;
-float phi, phi_pr, delta_phi, global_phi = 0, phi_f = 0;
+float omega = 0, omega_filtred = 0, K_omega = 0.0008, omega_0 = 360;
+float phi, phi_pr, delta_phi, global_phi = 0;
 float _phi_0 = 0;
 
 float t = 0;
@@ -105,7 +100,7 @@ enum
     velo = 1,
     pos = 2,
     calibrate = 3,
-    ide,
+    idle,
     current_control
 };
 
@@ -202,8 +197,7 @@ int compare(const void *x1, const void *x2)
 
 uint32_t min_value(__IO uint32_t *data)
 {
-    uint32_t ptr[3];
-    memcpy(ptr, data, 12);
+    uint32_t ptr[3] = {data[0], data[1], data[2]};
     qsort(ptr, 3, sizeof(uint32_t), compare);
     return ptr[2]; // ptr[1]+(ptr[2]-ptr[1])/2;
 }
@@ -212,20 +206,6 @@ uint32_t min_value(__IO uint32_t *data)
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-static void FDCAN_Config(void);
-FDCAN_TxHeaderTypeDef message_can;
-//  ={
-//		  .Identifier=0x32,
-//		  .IdType=FDCAN_STANDARD_ID,
-//		  .TxFrameType=FDCAN_DATA_FRAME,
-//		  .DataLength=FDCAN_DLC_BYTES_8,
-//		  .ErrorStateIndicator=FDCAN_ESI_ACTIVE,
-//		  .BitRateSwitch=FDCAN_BRS_OFF,
-//		  .FDFormat=FDCAN_CLASSIC_CAN,
-//		  .TxEventFifoControl=FDCAN_STORE_TX_EVENTS,
-//		  .MessageMarker=0
-//  };
-
 /* USER CODE END 0 */
 
 /**
@@ -272,14 +252,6 @@ int main(void)
     MX_FDCAN1_Init();
     /* USER CODE BEGIN 2 */
 
-    //  volatile int status__eeprom =ic_mu150_write_encoder_eeprom(&hi2c2);
-    //
-    //  int strlen= sprintf(str,"hello world %i\r\n",status__eeprom);
-    //  HAL_UART_Transmit(&huart4,str,strlen,0xff);
-    ////
-    //  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
-    //
-
     CO_ReturnError_t canopen_status = CO_init(&hfdcan1, 1 /* NodeID */, 500 /* bit rate */);
     if ((canopen_status != CO_ERROR_NO) || (CO == NULL) || (CO->CANmodule[0] == NULL))
     {
@@ -291,9 +263,6 @@ int main(void)
     CO_sendNMTcommand(CO, CO_NMT_ENTER_OPERATIONAL, 0x25);
 
     uint32_t canopen_tick = HAL_GetTick();
-
-    ic_mu150 *encoder_gearbox = ic_mu150_init(&hspi2, SPI2_CS_GPIO_Port, SPI2_CS_Pin, 0);
-    ic_mu150 *encoder_motor = ic_mu150_init(&hspi3, SPI3_CS_GPIO_Port, SPI3_CS_Pin, 0);
 
     DWT_init();
 
@@ -319,7 +288,6 @@ int main(void)
     m1.P = 0.1;
     m1.phi = 0;
     m1.S = htim20.Instance->ARR / 2;
-    volatile GPIO_PinState DRIVER_FAULT_STATE;
     //---P-I-D----------------------------------------------------------
     float I_error = 0;
     float p_error = 0;
@@ -330,12 +298,11 @@ int main(void)
     //------------------------------------------------------------------
 
     //---------------------------------------------------------
-    HAL_StatusTypeDef status = HAL_UART_Receive_DMA(&huart4, Rx0, size_pack);
-    uint16_t temp_adc;
+    HAL_UART_Receive_DMA(&huart4, Rx0, size_pack);
     //--encoder-frequenc-------------------------------------------------------------------------
-    HAL_StatusTypeDef ok1 = HAL_ADC_Start(&hadc1);
-    HAL_StatusTypeDef ok2 = HAL_ADC_Start(&hadc2);
-    HAL_StatusTypeDef ok3 = HAL_ADC_Start(&hadc3);
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_Start(&hadc2);
+    HAL_ADC_Start(&hadc3);
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -352,26 +319,15 @@ int main(void)
             canopen_tick = current_tick;
         }
 
-        //	  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
-        //	  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
-        //	  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
-        HAL_StatusTypeDef ok4 = HAL_ADC_Start(&hadc4);
+        HAL_ADC_Start(&hadc4);
 
         ADC[2] = 4095 - hadc1.Instance->DR; // W
         ADC[0] = 4095 - hadc2.Instance->DR; // U
         ADC[1] = 4095 - hadc3.Instance->DR; // V
-        temp_adc = hadc4.Instance->DR;
-
+        (void)hadc4.Instance->DR;
         dt = ((float)DWT->CYCCNT / (SystemCoreClock));
         DWT->CYCCNT = 0;
         t = ((float)HAL_GetTick()) * 0.001f;
-
-        DRIVER_FAULT_STATE = HAL_GPIO_ReadPin(DRIVER_FAULT_GPIO_Port, DRIVER_FAULT_Pin);
-
-        //	  encoder_motor->read_angle(encoder_motor);
-        //	  encoder_gearbox->read_angle(encoder_gearbox);
-        //	  phi=encoder_motor->angle;
-        // encoder_motor->angle;
 
         delta_phi = ((phi_pr > 270.0f) && (phi < 90.0f))   ? (360.0f + phi - phi_pr)
                     : ((phi_pr < 90.0f) && (phi > 270.0f)) ? (-360.0f + phi - phi_pr)
@@ -382,20 +338,15 @@ int main(void)
 
         omega = delta_phi / dt;
         omega_filtred += K_omega * (omega - omega_filtred);
-        // debug
-
         switch (mode)
         {
 
         case moment:
         {
             m1.P = 0.07; // fabsf(_phi_0);
-            float sign = _phi_0 == 0 ? 0 : _phi_0 / fabsf(_phi_0);
-            m1.phi = geom_angle_to_electric_angle(phi) * M_PI_ / 180.0f + M_PI_ / 2 * sign;
+            m1.phi = -t * 2;
 
-            m1.phi = -t * 2; //_phi_0*M_PI_/180.0f;
-
-            vector_pwv(T, m1.phi, m1.P);
+            vector_pwm(T, m1.phi, m1.P);
             htim20.Instance->CCR1 = (uint32_t)(T[0] * htim20.Instance->ARR); // U
             htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
@@ -423,7 +374,7 @@ int main(void)
             m1.phi = geom_angle_to_electric_angle(phi) * M_PI_ / 180.0f + M_PI_ / 2 * sign;
             m1.P = PI_er > 0.9 ? 0.9 : PI_er < 0 ? 0 : PI_er;
 
-            vector_pwv(T, -m1.phi, m1.P);
+            vector_pwm(T, -m1.phi, m1.P);
             htim20.Instance->CCR1 = (uint32_t)(T[0] * htim20.Instance->ARR); // U
             htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
@@ -449,7 +400,7 @@ int main(void)
                 m1.phi = geom_angle_to_electric_angle(phi) * M_PI_ / 180.0f + M_PI_ / 2 * sign;
                 m1.P = PI_er > 0.9 ? 0.9 : PI_er < 0 ? 0 : PI_er;
 
-                vector_pwv(T, -m1.phi, m1.P);
+                vector_pwm(T, -m1.phi, m1.P);
                 htim20.Instance->CCR1 = (uint32_t)(T[0] * htim20.Instance->ARR); // U
                 htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
                 htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
@@ -461,14 +412,14 @@ int main(void)
             m1.P = 0.0; // fabsf(_phi_0);
             m1.phi = 0;
 
-            vector_pwv(T, -m1.phi, m1.P);
+            vector_pwm(T, -m1.phi, m1.P);
             htim20.Instance->CCR1 = (uint32_t)(T[0] * htim20.Instance->ARR); // U
             htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
             break;
         }
 
-        case ide:
+        case idle:
         {
             htim20.Instance->CCR1 = 0;
             htim20.Instance->CCR2 = 0;
@@ -478,47 +429,7 @@ int main(void)
         case current_control:
         {
 
-            //		  I_2_phase I0=
-            //		  {
-            //				  .alpha=0.0,
-            //				  .betta=0.1
-            //		  };
-            //		  I_3_phase I=
-            //		  {
-            //				  .A=ADC[0]*3.3f/4096.0f*6.06063f-10,
-            //				  .B=ADC[1]*3.3f/4096.0f*6.06063f-10,
-            //				  .C=ADC[2]*3.3f/4096.0f*6.06063f-10
-            //		  };
-            //
-            //		  I_2_phase
-            // I_dq=DQ_transformation(&I,geom_angle_to_electric_angle(phi)*M_PI_/180.0f);
-            //
-            //		  I_2_phase U_c=
-            //		  {
-            //				  .alpha=(I0.alpha-I_dq.alpha)*0.08,
-            //				  .betta=(I0.betta-I_dq.betta)*0.08
-            //		  };
-            //
-            //		  m1.phi=atan2f(U_c.betta,U_c.alpha)-M_PI;
-            //		  float power=sqrtf(U_c.betta*U_c.betta+U_c.alpha*U_c.alpha);
-            //		  m1.P=((power<0.3)&&(power>0.0))?power:0;
-
-            I_3_phase I = {.A = ADC[0] * 3.3f / 4096.0f * 6.06063f - 10,
-                           .B = ADC[1] * 3.3f / 4096.0f * 6.06063f - 10,
-                           .C = ADC[2] * 3.3f / 4096.0f * 6.06063f - 10};
-
-            I_2_phase I_ab = Klark_transformation(&I);
-
-            I_2_phase I0_ab = {.alpha = 0, .betta = 0};
-
-            I_2_phase I_error;
-            static I_2_phase I_error_privious = {.alpha = 0, .betta = 0};
-            static I_2_phase I_error_integtral = {.alpha = 0, .betta = 0};
-
-            I_error.alpha = I0_ab.alpha - I_ab.alpha;
-            I_error.betta = I0_ab.betta - I_ab.betta;
-
-            vector_pwv(T, -m1.phi, m1.P);
+            vector_pwm(T, -m1.phi, m1.P);
             htim20.Instance->CCR1 = (uint32_t)(T[0] * htim20.Instance->ARR); // U
             htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
@@ -1476,35 +1387,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart == &huart4)
-    {
-
-        //		 send_data(
-        //				 ADC,
-        //				 &htim20.Instance->CCR1,
-        //				 ADC
-        //				 ,phi
-        //				 ,global_phi
-        //				 ,dt,t,omega);
-    }
-}
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    if (huart == &huart4)
-    {
-    }
-}
-
-HAL_FDCAN_TxBufferCompleteCallback(FDCAN_HandleTypeDef *hfdcan, uint32_t BufferIndexes)
-{
-    strl = sprintf((char *)str, "message_sended\r\n");
-    HAL_UART_Transmit_DMA(&huart4, str, strl);
-}
-
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+    (void)RxFifo0ITs;
     FDCAN_RxHeaderTypeDef rx;
     CO_CANrxMsg_t can_open_msg;
     HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx, can_open_msg.data);
@@ -1513,20 +1398,6 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
     can_open_msg.ident = rx.Identifier & CAN_SFF_MASK;
 
     can_interrupt_rx(CO->CANmodule[0], &can_open_msg);
-    if (1)
-    {
-
-        strl = sprintf((char *)str, "message_recived0\r\n");
-        HAL_UART_Transmit_DMA(&huart4, str, strl);
-    }
-}
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
-{
-    if (1)
-    {
-        strl = sprintf((char *)str, "message_recived1\r\n");
-        HAL_UART_Transmit_DMA(&huart4, str, strl);
-    }
 }
 /* USER CODE END 4 */
 
