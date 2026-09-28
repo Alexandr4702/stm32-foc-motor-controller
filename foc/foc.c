@@ -240,7 +240,7 @@ I_2_phase PI_regulator(I_2_phase *I0, I_2_phase *I, float delta_t)
     I_2_phase e;
     static I_2_phase I_e = {.alpha = 0.0, .betta = 0.0};
     e.alpha = (I0->alpha - I->alpha);
-    e.betta = (I0->alpha - I->alpha);
+    e.betta = (I0->betta - I->betta);
     I_e.alpha += e.alpha;
     I_e.betta += e.betta;
 

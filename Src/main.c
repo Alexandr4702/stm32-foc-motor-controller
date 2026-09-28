@@ -280,23 +280,17 @@ int main(void)
     //  HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
     //
 
-    if (1)
+    CO_ReturnError_t canopen_status = CO_init(&hfdcan1, 1 /* NodeID */, 500 /* bit rate */);
+    if ((canopen_status != CO_ERROR_NO) || (CO == NULL) || (CO->CANmodule[0] == NULL))
     {
-        CO_ReturnError_t err = CO_init(&hfdcan1, 1 /* NodeID */, 500 /* bit rate */);
-        CO_CANsetNormalMode(CO->CANmodule[0]);
-        HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
-        DWT_init();
-
-        CO_sendNMTcommand(CO, CO_NMT_ENTER_OPERATIONAL, 0x25);
-
-        __IO uint16_t entrno = CO_OD_find(CO->SDO[0], 0x6000);
-
-        while (1)
-        {
-            CO_process(CO, 1, NULL);
-            delay_us(1000);
-        }
+        Error_Handler();
+        return 1;
     }
+    CO_CANsetNormalMode(CO->CANmodule[0]);
+    HAL_GPIO_WritePin(CAN_SDB_GPIO_Port, CAN_SDB_Pin, GPIO_PIN_RESET);
+    CO_sendNMTcommand(CO, CO_NMT_ENTER_OPERATIONAL, 0x25);
+
+    uint32_t canopen_tick = HAL_GetTick();
 
     ic_mu150 *encoder_gearbox = ic_mu150_init(&hspi2, SPI2_CS_GPIO_Port, SPI2_CS_Pin, 0);
     ic_mu150 *encoder_motor = ic_mu150_init(&hspi3, SPI3_CS_GPIO_Port, SPI3_CS_Pin, 0);
@@ -348,6 +342,16 @@ int main(void)
     /* USER CODE BEGIN WHILE */
     while (1)
     {
+        uint32_t current_tick = HAL_GetTick();
+        uint32_t canopen_elapsed_ms = current_tick - canopen_tick;
+        if (canopen_elapsed_ms > 0U)
+        {
+            uint16_t process_time_ms =
+                canopen_elapsed_ms > UINT16_MAX ? UINT16_MAX : (uint16_t)canopen_elapsed_ms;
+            CO_process(CO, process_time_ms, NULL);
+            canopen_tick = current_tick;
+        }
+
         //	  HAL_StatusTypeDef ok1= HAL_ADC_Start(&hadc1);
         //	  HAL_StatusTypeDef ok2 =HAL_ADC_Start(&hadc2);
         //	  HAL_StatusTypeDef ok3 =HAL_ADC_Start(&hadc3);
@@ -985,9 +989,9 @@ static void MX_FDCAN1_Init(void)
     hfdcan1.Init.AutoRetransmission = DISABLE;
     hfdcan1.Init.TransmitPause = DISABLE;
     hfdcan1.Init.ProtocolException = DISABLE;
-    hfdcan1.Init.NominalPrescaler = 170;
+    hfdcan1.Init.NominalPrescaler = 20;
     hfdcan1.Init.NominalSyncJumpWidth = 1;
-    hfdcan1.Init.NominalTimeSeg1 = 4;
+    hfdcan1.Init.NominalTimeSeg1 = 13;
     hfdcan1.Init.NominalTimeSeg2 = 3;
     hfdcan1.Init.DataPrescaler = 1;
     hfdcan1.Init.DataSyncJumpWidth = 1;

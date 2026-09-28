@@ -73,9 +73,9 @@ CO_ReturnError_t CO_CANmodule_init(CO_CANmodule_t *CANmodule, void *CANdriverSta
     caninit->Init.AutoRetransmission = DISABLE;
     caninit->Init.TransmitPause = DISABLE;
     caninit->Init.ProtocolException = DISABLE;
-    caninit->Init.NominalPrescaler = 170;
+    caninit->Init.NominalPrescaler = 20;
     caninit->Init.NominalSyncJumpWidth = 1;
-    caninit->Init.NominalTimeSeg1 = 4;
+    caninit->Init.NominalTimeSeg1 = 13;
     caninit->Init.NominalTimeSeg2 = 3;
     caninit->Init.DataPrescaler = 1;
     caninit->Init.DataSyncJumpWidth = 1;
