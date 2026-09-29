@@ -92,17 +92,26 @@ float _phi_0 = 0;
 float t = 0;
 float dt = 0;
 
-enum
+typedef enum
 {
-    moment = 0,
-    velo = 1,
-    pos = 2,
-    calibrate = 3,
-    idle,
-    current_control
-};
+    CONTROL_MODE_MOMENT = 0,
+    CONTROL_MODE_VELOCITY,
+    CONTROL_MODE_POSITION,
+    CONTROL_MODE_CALIBRATION,
+    CONTROL_MODE_IDLE,
+    CONTROL_MODE_CURRENT
+} control_mode_t;
 
-uint8_t mode = moment;
+typedef struct
+{
+    control_mode_t current;
+    volatile control_mode_t requested;
+} control_state_machine_t;
+
+static control_state_machine_t control_state = {
+    .current = CONTROL_MODE_MOMENT,
+    .requested = CONTROL_MODE_MOMENT,
+};
 
 typedef struct
 {
@@ -200,6 +209,29 @@ static uint32_t max_phase_compare(const volatile uint32_t *compare)
         maximum = compare[2];
     }
     return maximum;
+}
+
+static control_mode_t control_state_machine_step(control_state_machine_t *state)
+{
+    control_mode_t requested = state->requested;
+
+    switch (requested)
+    {
+    case CONTROL_MODE_MOMENT:
+    case CONTROL_MODE_VELOCITY:
+    case CONTROL_MODE_POSITION:
+    case CONTROL_MODE_CALIBRATION:
+    case CONTROL_MODE_IDLE:
+    case CONTROL_MODE_CURRENT:
+        state->current = requested;
+        break;
+    default:
+        state->requested = CONTROL_MODE_IDLE;
+        state->current = CONTROL_MODE_IDLE;
+        break;
+    }
+
+    return state->current;
 }
 
 /* USER CODE END PFP */
@@ -331,10 +363,10 @@ int main(void)
 
         omega = delta_phi / dt;
         omega_filtred += K_omega * (omega - omega_filtred);
-        switch (mode)
+        switch (control_state_machine_step(&control_state))
         {
 
-        case moment:
+        case CONTROL_MODE_MOMENT:
         {
             m1.P = 0.07; // fabsf(_phi_0);
             m1.phi = -t * 2;
@@ -347,7 +379,7 @@ int main(void)
             htim20.Instance->CCR4 = max_phase_compare(&htim20.Instance->CCR1);
             break;
         }
-        case velo:
+        case CONTROL_MODE_VELOCITY:
         {
             /* Angular velocity control. */
             p_error = error;
@@ -373,7 +405,7 @@ int main(void)
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
             break;
         }
-        case pos:
+        case CONTROL_MODE_POSITION:
         {
             // position-control-------------------------------------------------------------------------------
             {
@@ -400,7 +432,7 @@ int main(void)
                 break;
             }
         }
-        case calibrate:
+        case CONTROL_MODE_CALIBRATION:
         {
             m1.P = 0.0; // fabsf(_phi_0);
             m1.phi = 0;
@@ -412,14 +444,14 @@ int main(void)
             break;
         }
 
-        case idle:
+        case CONTROL_MODE_IDLE:
         {
             htim20.Instance->CCR1 = 0;
             htim20.Instance->CCR2 = 0;
             htim20.Instance->CCR3 = 0;
             break;
         }
-        case current_control:
+        case CONTROL_MODE_CURRENT:
         {
 
             vector_pwm(T, -m1.phi, m1.P);
