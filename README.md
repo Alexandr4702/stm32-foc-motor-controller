@@ -82,12 +82,15 @@ must be verified for the actual inverter before enabling PWM.
 The firmware currently enables the gate driver and starts PWM during startup.
 It does not implement a runtime shutdown response for the driver fault input.
 
-## Code samples to review
+## Suggested reading order
 
-- [FOC transforms, PI helpers, and SVPWM](foc/foc.c)
-- [Streaming `0x10 0x10` message parser](parser_1010/parser_1010.c)
-- [iC-MU150 encoder and EEPROM driver](Src/IC_MCU150.c)
-- [Application loop, CANopen integration, and telemetry](Src/main.c)
+The following links point to project-specific code. STM32-generated files,
+CANopenNode, CMSIS, and HAL are not presented as original work.
+
+1. [FOC transforms, PI controllers, and SVPWM](foc/foc.c)
+2. [Streaming `0x10 0x10` protocol parser](parser_1010/parser_1010.c)
+3. [iC-MU150 encoder and EEPROM driver](Src/IC_MCU150.c)
+4. [Application-specific sections in the CubeMX entry point](Src/main.c)
 
 ## Project structure
 
