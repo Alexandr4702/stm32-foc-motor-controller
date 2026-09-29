@@ -24,7 +24,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <math.h>
-#include <stdlib.h>
 #include "../foc/foc.h"
 
 #include "../parser_1010/parser_1010.h"
@@ -93,7 +92,6 @@ float _phi_0 = 0;
 float t = 0;
 float dt = 0;
 
-//------------------------------------------------------------------------------------------
 enum
 {
     moment = 0,
@@ -190,16 +188,18 @@ void delay_ns(uint32_t ns)
         ;
 }
 
-int compare(const void *x1, const void *x2)
+static uint32_t max_phase_compare(const volatile uint32_t *compare)
 {
-    return (*(uint32_t *)x1 - *(uint32_t *)x2);
-}
-
-uint32_t min_value(__IO uint32_t *data)
-{
-    uint32_t ptr[3] = {data[0], data[1], data[2]};
-    qsort(ptr, 3, sizeof(uint32_t), compare);
-    return ptr[2]; // ptr[1]+(ptr[2]-ptr[1])/2;
+    uint32_t maximum = compare[0];
+    if (compare[1] > maximum)
+    {
+        maximum = compare[1];
+    }
+    if (compare[2] > maximum)
+    {
+        maximum = compare[2];
+    }
+    return maximum;
 }
 
 /* USER CODE END PFP */
@@ -288,18 +288,11 @@ int main(void)
     m1.P = 0.1;
     m1.phi = 0;
     m1.S = htim20.Instance->ARR / 2;
-    //---P-I-D----------------------------------------------------------
     float I_error = 0;
     float p_error = 0;
     float error = 0;
     float D_error = 0;
-    //---P-I-D--V--------------------------------------------------------
-
-    //------------------------------------------------------------------
-
-    //---------------------------------------------------------
     HAL_UART_Receive_DMA(&huart4, Rx0, size_pack);
-    //--encoder-frequenc-------------------------------------------------------------------------
     HAL_ADC_Start(&hadc1);
     HAL_ADC_Start(&hadc2);
     HAL_ADC_Start(&hadc3);
@@ -351,12 +344,12 @@ int main(void)
             htim20.Instance->CCR2 = (uint32_t)(T[1] * htim20.Instance->ARR); // V
             htim20.Instance->CCR3 = (uint32_t)(T[2] * htim20.Instance->ARR); // W
 
-            htim20.Instance->CCR4 = min_value(&htim20.Instance->CCR1);
+            htim20.Instance->CCR4 = max_phase_compare(&htim20.Instance->CCR1);
             break;
         }
         case velo:
         {
-            //-angular-velsoty-control-----------------------------------------------------------------------------
+            /* Angular velocity control. */
             p_error = error;
             omega_0 = _phi_0;
             error = omega_0 - omega_filtred;
@@ -437,9 +430,7 @@ int main(void)
         }
         }
 
-        // sending--message-------------------------------------------------------------------------
-
-        // TODO  put in a separate task
+        /* Periodic telemetry. */
         if (HAL_GetTick() - pr_sending_time > sending_period)
         {
 
@@ -449,8 +440,6 @@ int main(void)
             }
             pr_sending_time = HAL_GetTick();
         }
-
-        //--------------------------------------------------------------------------------------------------------
 
         if (huart4.RxState == HAL_UART_STATE_READY)
         {
@@ -487,14 +476,7 @@ int main(void)
             pr_CNDTR = size_pack;
         }
 
-        //-------------------------------------------------------------------------------------
-
-        /*
-         *Uart reading
-         *
-         *
-         */
-        // TODO  put in a separate task
+        /* Process bytes received by UART DMA. */
         if (HAL_GetTick() - pr_read_time >= read_period)
         {
 

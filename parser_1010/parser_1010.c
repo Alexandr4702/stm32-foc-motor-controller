@@ -7,10 +7,9 @@
 
 #include "parser_1010.h"
 
-/*checksum
- *
- */
-uint8_t checksum(void *data, uint16_t size)
+#include <string.h>
+
+static uint8_t checksum(const void *data, uint16_t size)
 {
     uint8_t crc = 0;
     uint16_t i;
@@ -26,7 +25,7 @@ uint8_t checksum(void *data, uint16_t size)
  * size - available data size; updated with the number of bytes left
  * return - message ID and status flags
  */
-uint8_t parser(uint8_t *const data, uint16_t *size, messageStack *stack)
+uint8_t parser(const uint8_t *data, uint16_t *size, messageStack *stack)
 {
 
     static uint8_t ident_cnt = 0; /*if high byte is equal 1 we are reading message */
@@ -163,7 +162,6 @@ uint8_t parser(uint8_t *const data, uint16_t *size, messageStack *stack)
                 }
                 break;
             }
-            //---------------------------------------------------------------------------------
             default:
                 ident_cnt = 0;
                 break;
@@ -179,7 +177,7 @@ uint8_t parser(uint8_t *const data, uint16_t *size, messageStack *stack)
  * size - data size
  */
 
-void generate_message(void *message, void *const data, uint8_t id, uint16_t size)
+void generate_message(void *message, const void *data, uint8_t id, uint16_t size)
 {
     ((char *)message)[0] = 0x10;
     ((char *)message)[1] = 0x10;

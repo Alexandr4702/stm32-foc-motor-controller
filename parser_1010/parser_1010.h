@@ -9,7 +9,6 @@
 #define PARSER_1010_H_
 
 #include "main.h"
-#include "string.h"
 /*
  * list all id
  */
@@ -65,8 +64,7 @@ typedef struct
     Mcdata Mcdata_;
 } messageStack;
 
-uint8_t parser(uint8_t *data, uint16_t *size, messageStack *stack);
-uint8_t checksum(void *data, uint16_t size);
-void generate_message(void *message, void *const data, uint8_t id, uint16_t size);
+uint8_t parser(const uint8_t *data, uint16_t *size, messageStack *stack);
+void generate_message(void *message, const void *data, uint8_t id, uint16_t size);
 
 #endif /* PARSER_1010_H_ */

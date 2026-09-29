@@ -5,25 +5,25 @@
  *      Author: gilg
  */
 
-#include "../foc/foc.h"
+#include "foc.h"
 
-static float K_p = 3.0f;
-static float K_i = 0.1;
+#include <math.h>
+
+static const float K_p = 3.0f;
+static const float K_i = 0.1f;
 #define M_PI_ (float)M_PI
 
-float geom_angle_to_electric_angle(__IO float angle)
+float geom_angle_to_electric_angle(float angle)
 {
-
-    static float wide_ang = 360.0f / 10.0f;
+    static const float wide_ang = 360.0f / 10.0f;
     float temp = angle / wide_ang;
     float curr_n = (temp - floorf(temp));
     return curr_n * 360.0f;
 }
 void vector_pwm(float *output, float angle, float v_amp)
 {
-    static float M_PI_3 = M_PI / 3.0f;
-
-    static float Tpwm = 1.0;
+    static const float M_PI_3 = M_PI / 3.0f;
+    static const float Tpwm = 1.0f;
     float cons = v_amp;
 
     angle = angle - floorf(angle / M_PI / 2) * M_PI * 2;
@@ -120,123 +120,69 @@ void vector_pwm(float *output, float angle, float v_amp)
     }
 }
 
-I_3_phase DQ_transformation_(const I_3_phase *I, float thetta)
-{
-    I_3_phase ret;
-
-    float cos_ = cosf(thetta);
-    float sin_ = sinf(thetta);
-
-    float dif = 1.73205080f * (I->B - I->C);
-    float sum = 2 * I->A - I->B - I->C;
-    ret.A = (sum * cos_ + dif * sin_) / 3;
-    ret.B = (-sum * sin_ + dif * cos_) / 3;
-    ret.C = 0; //(I->A+I->B+I->C)/3;
-    return ret;
-}
-
-I_3_phase DQ_Inverse_transformation_(const I_3_phase *I, float thetta)
-{
-    I_3_phase ret;
-    float cos_ = cosf(thetta);
-    float sin_ = sinf(thetta);
-    ret.A = I->C + I->A * cos_ + I->B * sin_;
-    ret.B =
-        I->C + (-0.5f * I->A - 0.866025f * I->B) * cos_ + (0.866025f * I->A - 0.5f * I->B) * sin_;
-    ret.C =
-        I->C + (-0.5f * I->A + 0.866025f * I->B) * cos_ + (-0.866025f * I->A - 0.5f * I->B) * sin_;
-    return ret;
-}
-
-I_2_phase Klark_transformation(const I_3_phase *I)
+I_2_phase clarke_transform(const I_3_phase *current)
 {
     I_2_phase ret;
 
-    ret.alpha = 0.666f * (I->A * 1.0f - I->B * 0.5 - I->C * 0.5f);
-    ret.betta = 0.666f * (I->A * 0.0f + I->B * 0.866 - I->C * 0.866f);
+    ret.alpha = 0.666f * (current->A - current->B * 0.5f - current->C * 0.5f);
+    ret.beta = 0.666f * (current->B * 0.866f - current->C * 0.866f);
     return ret;
 }
 
-I_3_phase Inverse_Klark_transformation(const I_2_phase *I)
+I_3_phase inverse_clarke_transform(const I_2_phase *current)
 {
     I_3_phase ret;
-    ret.A = I->alpha * 3 / 2;
-    ret.B = (-I->alpha * 0.5f + I->betta * 0.866f) * 3 / 2;
-    ret.C = (-I->alpha * 0.5f - I->betta * 0.866f) * 3 / 2;
+    ret.A = current->alpha * 3.0f / 2.0f;
+    ret.B = (-current->alpha * 0.5f + current->beta * 0.866f) * 3.0f / 2.0f;
+    ret.C = (-current->alpha * 0.5f - current->beta * 0.866f) * 3.0f / 2.0f;
     return ret;
 }
 
-I_2_phase Park_transformation(const I_2_phase *I, float thetta)
+I_2_phase park_transform(const I_2_phase *current, float theta)
 {
     I_2_phase ret;
-    float cos_ = cosf(thetta);
-    float sin_ = sinf(thetta);
-    ret.alpha = I->alpha * cos_ - I->betta * sin_;
-    ret.betta = I->alpha * sin_ + I->betta * cos_;
+    float cos_ = cosf(theta);
+    float sin_ = sinf(theta);
+    ret.alpha = current->alpha * cos_ - current->beta * sin_;
+    ret.beta = current->alpha * sin_ + current->beta * cos_;
     return ret;
 }
 
-I_2_phase Inverse_Park_transformation(const I_2_phase *I, float thetta)
+I_2_phase inverse_park_transform(const I_2_phase *current, float theta)
 {
     I_2_phase ret;
-    float cos_ = cosf(-thetta);
-    float sin_ = sinf(-thetta);
-    ret.alpha = I->alpha * cos_ - I->betta * sin_;
-    ret.betta = I->alpha * sin_ + I->betta * cos_;
+    float cos_ = cosf(-theta);
+    float sin_ = sinf(-theta);
+    ret.alpha = current->alpha * cos_ - current->beta * sin_;
+    ret.beta = current->alpha * sin_ + current->beta * cos_;
     return ret;
 }
 
-I_2_phase DQ_transformation(const I_3_phase *I, float thetta)
+I_2_phase dq_transform(const I_3_phase *current, float theta)
 {
-    I_2_phase ret = Klark_transformation(I);
-    ret = Park_transformation(&ret, thetta);
+    I_2_phase ret = clarke_transform(current);
+    ret = park_transform(&ret, theta);
     return ret;
 }
 
-I_3_phase Inverse_DQ_transformation(const I_2_phase *I, float thetta)
+I_3_phase inverse_dq_transform(const I_2_phase *current, float theta)
 {
-    I_2_phase temp = Inverse_Park_transformation(I, thetta);
-    I_3_phase ret = Inverse_Klark_transformation(&temp);
+    I_2_phase temp = inverse_park_transform(current, theta);
+    I_3_phase ret = inverse_clarke_transform(&temp);
     return ret;
 }
 
-I_2_phase PI_regulator(I_2_phase *I0, I_2_phase *I, float delta_t)
+I_2_phase pi_regulator(const I_2_phase *setpoint, const I_2_phase *current, float delta_t)
 {
     I_2_phase ret;
     I_2_phase e;
-    static I_2_phase I_e = {.alpha = 0.0, .betta = 0.0};
-    e.alpha = (I0->alpha - I->alpha);
-    e.betta = (I0->betta - I->betta);
+    static I_2_phase I_e = {.alpha = 0.0f, .beta = 0.0f};
+    e.alpha = setpoint->alpha - current->alpha;
+    e.beta = setpoint->beta - current->beta;
     I_e.alpha += e.alpha;
-    I_e.betta += e.betta;
+    I_e.beta += e.beta;
 
     ret.alpha = e.alpha * K_p + I_e.alpha * K_i * delta_t; // id
-    ret.betta = e.betta * K_p + I_e.betta * K_i * delta_t; // iq
-    return ret;
-}
-
-I_3_phase PI_regulator_3ph(I_3_phase *I0, I_3_phase *I, float delta_t)
-{
-    I_3_phase ret;
-    I_3_phase e;
-    static I_3_phase I_e = {.A = 0.0, .B = 0.0, .C = 0.0};
-    e.A = (I0->A - I->A);
-    e.B = (I0->B - I->B);
-    e.C = (I0->C - I->C);
-    delta_t *= 10;
-    I_e.A = (I_e.A + e.A * delta_t) > 1    ? I_e.A
-            : (I_e.A + e.A * delta_t) < -1 ? I_e.A
-                                           : (I_e.A + e.A * delta_t);
-    I_e.B = (I_e.B + e.B * delta_t) > 1    ? I_e.B
-            : (I_e.B + e.B * delta_t) < -1 ? I_e.B
-                                           : (I_e.B + e.B * delta_t);
-    I_e.C = (I_e.C + e.C * delta_t) > 1    ? I_e.C
-            : (I_e.C + e.C * delta_t) < -1 ? I_e.C
-                                           : (I_e.C + e.C * delta_t);
-
-    ret.A = e.A * K_p + I_e.A * K_i; // id
-    ret.B = e.B * K_p + I_e.B * K_i; // iq
-    ret.C = e.C * K_p + I_e.C * K_i; // iq
-
+    ret.beta = e.beta * K_p + I_e.beta * K_i * delta_t;    // iq
     return ret;
 }
