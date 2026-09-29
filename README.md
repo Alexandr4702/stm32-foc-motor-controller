@@ -1,144 +1,50 @@
 # STM32 FOC Motor Controller
 
-Experimental STM32 firmware for field-oriented control of a three-phase
-PMSM/BLDC motor.
+Experimental firmware for a three-phase PMSM/BLDC inverter based on the
+STM32G474VE. It contains Clarke/Park transforms, PI controllers, SVPWM,
+three-phase current acquisition, CANopen communication, encoder drivers, and
+UART telemetry.
 
-## Features
+The current startup mode is an open-loop rotating voltage vector. Encoder
+feedback and closed-loop current control are not active.
 
-- Field-oriented motor-control building blocks (FOC)
-- Clarke and Park transformations
-- Space-vector PWM generation
-- Three-phase current measurement
-- iC-MU150 encoder driver (not read by the current runtime loop)
-- CANopen communication
-- UART telemetry
+## Requirements
 
-## Control architecture
+- STM32CubeIDE with STM32G4 support and the ARM GNU Toolchain
+- ST-LINK programmer/debugger
+- STM32G474VE target board and compatible three-phase inverter
+- Current sensors and a current-limited bench supply
+- Optional: iC-MU150 encoder, CAN interface, and 576000-baud UART connection
 
-The `foc/` module implements the main stages of a conventional FOC loop:
+STM32 HAL/CMSIS code is under `Drivers/`. CANopenNode is under
+`CanOpen_stack/`. The CubeMX configuration is `stm32_g4veh_test.ioc`.
 
-1. Phase currents are sampled and represented as a three-phase vector.
-2. Clarke and Park transforms convert the measured currents into the rotating
-   `d`/`q` reference frame using the rotor electrical angle.
-3. PI regulators calculate the requested `d`- and `q`-axis voltages from the
-   current errors.
-4. Inverse transforms convert the voltage request back to the stationary frame.
-5. The space-vector PWM block generates three duty cycles for the inverter.
+## Build
 
-The application also contains experimental torque, velocity, position,
-calibration, idle, and current-control modes. The default `moment` mode currently
-generates an open-loop rotating voltage vector; encoder reads are disabled and
-the closed-loop current-control path is incomplete. The FOC transformations and
-PI helpers are therefore code samples, not an active closed-loop motor-control
-implementation. Controller gains and limits must be tuned for the motor,
-inverter, current sensors, encoder, and control-loop period used by the target
-hardware.
+1. Clone the repository.
+2. Open STM32CubeIDE and select **File → Import → Existing Projects into
+   Workspace**.
+3. Select the repository directory.
+4. Build the `Debug` configuration.
 
-CANopen is used for external commands and status exchange, while UART telemetry
-can be used to inspect measurements and controller state during development.
-
-## Sensors and connected devices
-
-### Phase-current sensing
-
-Three analog current channels measure the motor phase currents. The STM32
-operational amplifiers condition the signals and the ADCs sample them in
-synchronization with the PWM timer. These measurements are the feedback values
-for the current-control loop.
-
-### Absolute encoders
-
-The firmware provides a driver for iC-MU150 absolute encoders over SPI, plus an
-I2C path for reading and programming encoder EEPROM data. The current runtime
-does not instantiate or read the motor and gearbox encoders, so `phi` is not
-updated from encoder feedback.
-
-### Power stage
-
-The inverter is driven by three complementary PWM pairs. A GPIO signal controls
-the gate-driver enable input, and a fault input is configured. The current
-runtime does not act on that fault input. Hardware dead time and fault protection
-must be verified for the actual inverter before enabling PWM.
-
-### Communication interfaces
-
-- **CAN/CANopen** — commands, configuration, and status exchange with a higher-
-  level controller.
-- **UART with DMA** — binary telemetry without blocking the control loop.
-- **Auxiliary ADC input** — an additional analog channel reserved for board-level
-  measurements such as temperature or supply monitoring.
-
-## Runtime flow
-
-1. Initialize the clock, GPIO, ADC, operational amplifiers, timers,
-   communication interfaces, and power-stage control signals.
-2. Receive operating commands and setpoints through CANopen or the local
-   application state.
-3. Sample phase currents; encoder feedback is currently disabled.
-4. Generate a voltage vector for the selected experimental mode.
-5. Convert the voltage vector into three PWM duty cycles.
-6. Update the inverter outputs and publish diagnostic telemetry.
-
-The firmware currently enables the gate driver and starts PWM during startup.
-It does not implement a runtime shutdown response for the driver fault input.
-
-## Suggested reading order
-
-The following links point to project-specific code. STM32-generated files,
-CANopenNode, CMSIS, and HAL are not presented as original work.
-
-1. [FOC transforms, PI controllers, and SVPWM](foc/foc.c)
-2. [Streaming `0x10 0x10` protocol parser](parser_1010/parser_1010.c)
-3. [iC-MU150 encoder and EEPROM driver](Src/IC_MCU150.c)
-4. [Application-specific sections in the CubeMX entry point](Src/main.c)
-
-## Project structure
-
-- `Src/`, `Inc/` — application code and hardware initialization
-- `foc/` — motor-control algorithms
-- `parser_1010/` — telemetry protocol
-- `CanOpen_config/` — CANopen integration
-- `CanOpen_stack/` — CANopenNode sources
-- `Drivers/` — STM32 HAL and CMSIS
-- `stm32_g4veh_test.ioc` — STM32CubeMX configuration
-
-## Building
-
-### STM32CubeIDE
-
-1. Install STM32CubeIDE with STM32G4 support.
-2. Clone this repository.
-3. In STM32CubeIDE, select **File → Import → Existing Projects into Workspace**.
-4. Select the repository directory and import the project.
-5. Build the `Debug` configuration.
-6. Connect an ST-LINK programmer and flash the firmware.
-
-### Command line
-
-The `Debug/` directory is generated by STM32CubeIDE and is not tracked. After
-CubeIDE has generated it, the project can be rebuilt with the ARM GNU Toolchain
-and `make` available in `PATH`:
+After STM32CubeIDE has generated `Debug/`, the same configuration can be rebuilt
+from a terminal with:
 
 ```sh
 make -C Debug all
 ```
 
-## Code formatting
+## Flash and run
 
-The repository contains a `.clang-format` configuration. Run `clang-format`
-on application source files before committing changes. Vendor and generated code
-should not be reformatted.
+1. Disconnect the motor or remove the mechanical load.
+2. Power the logic side and connect ST-LINK.
+3. Flash the `Debug` image from STM32CubeIDE.
+4. Verify PWM polarity, dead time, current scaling, and the gate-driver enable
+   signal with the power stage current-limited.
+5. Connect UART4 at 576000 baud for telemetry if required.
 
-## Safety
-
-Remove mechanical load before initial testing. Verify current limits, PWM
-polarity, fault handling, and emergency shutdown on a protected test bench before
-connecting the final motor and power stage.
-
-The current firmware is experimental and has not been qualified for unattended
-or safety-critical operation.
-
-## License
-
-No project-wide license has been specified. Third-party components retain their
-respective licenses.
+The firmware enables the gate driver and starts complementary PWM during
+startup. `DRIVER_FAULT` is configured as an input but does not currently trigger
+a software shutdown. Do not use this firmware on an energized power stage until
+fault handling, current limits, encoder feedback, and emergency shutdown have
+been validated for the actual hardware.
